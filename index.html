@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Periodização Ondulatória — Treino 6x/semana</title>
   <style>
-    /* (estilos iguais aos que eu te mandei antes) */
     :root{ --bg:#0f1115; --panel:#151923; --muted:#a6adbb; --text:#e8ecf1; --accent:#6ee7ff; --accent2:#a78bfa; --danger:#ff6b6b; --ok:#34d399; --card:#1b2230; --border:#273043; --yellow:#facc15; }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
@@ -134,14 +133,13 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import {
-      getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence
-    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    // === SEU CONFIG ===
+    // === Firebase config (o seu) ===
     const firebaseConfig = {
       apiKey: "AIzaSyAN9B0dCAIfVPmGZ6qUUfC8k9KnrUT5ymI",
       authDomain: "treino-ondulatoriov5.firebaseapp.com",
@@ -151,18 +149,18 @@
       appId: "1:152908725685:web:ca42dc3714fe07af162dfc"
     };
 
-    // ===== Workspace compartilhado =====
+    // Workspace pela URL (?ws=nome) — default se não passar
     const params = new URLSearchParams(location.search);
     const workspaceId = (params.get('ws') || 'default').trim();
     document.getElementById('ws-label').textContent = workspaceId;
 
-    // ===== Firebase =====
+    // Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
     enableIndexedDbPersistence(db).catch(()=>{});
 
-    // ===== Config do ciclo (igual de antes) =====
+    // ====== Config do ciclo ======
     const weeks=[
       {id:1,reps:"12–15",treg:false},{id:2,reps:"4–6",treg:false},{id:3,reps:"8–10",treg:false},{id:4,reps:"12–15",treg:false},
       {id:5,reps:"12–15",treg:true},{id:6,reps:"4–6",treg:false},{id:7,reps:"8–10",treg:false},{id:8,reps:"12–15",treg:false},
@@ -178,18 +176,17 @@
     // ===== Helpers =====
     const $=(s,r=document)=>r.querySelector(s);
     const el=(t,a={})=>Object.assign(document.createElement(t),a);
-    const key=(w,d)=>`treino:v12:ws:${workspaceId}:week${w}:day${d}`; // troquei a versão + ws
+    const key=(w,d)=>`treino:v13:ws:${workspaceId}:week${w}:day${d}`;
     function parseNum(v){ if(typeof v!=="string") v=String(v??""); v=v.replace(/\s+/g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
     function formatNum(n){ return (Number(n)||0).toLocaleString('pt-BR', {maximumFractionDigits:2}); }
     const defaultDay=t=>t.map(x=>({nome:x.nome,sets:x.sets,reps:x.reps,carga:x.carga}));
     const vol=o=>Math.round((Number(o.sets)||0)*(Number(o.reps)||0)*(Number(o.carga)||0)*100)/100;
     const activeDayIdx=[0,1,2,4,5,6];
 
-    // ===== Persistência Firestore (workspace) =====
+    // ===== Persistência Firestore =====
     function dayDocRef(ws, weekId, dayIdx){
       return doc(db, "workspaces", ws, "weeks", String(weekId), "days", String(dayIdx));
     }
-
     async function fsGetOrSeed(ws, weekId, dayIdx, seed){
       const ref = dayDocRef(ws, weekId, dayIdx);
       const snap = await getDoc(ref);
@@ -201,20 +198,33 @@
       }
     }
 
+    // ===== PATCH 1 — Seed imediato + fallback =====
     async function loadDay(weekIdx, dayIdx){
       const plan=dayPlan[dayIdx]; if(plan==='REST') return null;
       const k=key(weekIdx,dayIdx);
-      const s=localStorage.getItem(k); if(s){ try{return JSON.parse(s);}catch(e){} }
 
+      // 1) Tenta cache local
+      const s=localStorage.getItem(k);
+      if(s){ try{ return JSON.parse(s); }catch(e){} }
+
+      // 2) Monta SEED local e rende já
       let base=defaultDay(catalog[plan]);
-      const repTxt=weeks[weekIdx-1].reps; const [min,max]=repTxt.split('–').map(Number); const target=Math.round((min+max)/2);
+      const repTxt=weeks[weekIdx-1].reps; 
+      const [min,max]=repTxt.split('–').map(Number); 
+      const target=Math.round((min+max)/2);
       base=base.map(o=>({...o,reps:target}));
       if(weeks[weekIdx-1].treg){ base=base.map(o=>({...o,sets:Math.max(1,Math.floor(o.sets/2))})); }
+      localStorage.setItem(k, JSON.stringify(base));
 
-      // busca/cria no Firestore
-      const data = await fsGetOrSeed(workspaceId, weekIdx, dayIdx, base);
-      localStorage.setItem(k, JSON.stringify(data));
-      return data;
+      // 3) Sincroniza com Firestore sem travar a UI
+      try{
+        const data = await fsGetOrSeed(workspaceId, weekIdx, dayIdx, base);
+        localStorage.setItem(k, JSON.stringify(data || base));
+        return data || base;
+      }catch(err){
+        console.warn('Firestore indisponível, usando seed local', err);
+        return base;
+      }
     }
 
     async function saveDay(weekIdx, dayIdx, data){
@@ -442,17 +452,22 @@
     }
     function renderTestStatus(r){ const ok=r.filter(x=>x.pass).length, total=r.length, elS=$('#testStatus'); if(!elS) return; elS.textContent=`Autotestes: ${ok}/${total} OK`; if(ok!==total) console.table(r); }
 
-    // ===== Init =====
+    // ===== PATCH 2 — Render primeiro, login depois =====
     (async function init(){
-      signInAnonymously(auth).catch(console.error);
-      attachRealtimeSync(workspaceId);
-      renderTestStatus(runSelfTests());
+      // Render imediato com seed local
       await buildWeek(1);
+
+      // Agora autentica e liga o realtime
+      signInAnonymously(auth)
+        .then(()=> attachRealtimeSync(workspaceId))
+        .catch(console.error);
+
+      renderTestStatus(runSelfTests());
 
       // UI
       document.getElementById('week').addEventListener('change',()=>buildWeek(Number(document.getElementById('week').value)));
 
-      // Exportar/Importar (idêntico à versão anterior, mas agora inclui ws na chave)
+      // Exportar/Importar
       document.getElementById('exportBtn').addEventListener('click',()=>{
         const dump={}; weeks.forEach(w=>{ dump[w.id]={}; activeDayIdx.forEach(i=>dump[w.id][i]=JSON.parse(localStorage.getItem(key(w.id,i))||'[]')); });
         const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`treino_${workspaceId}.json`; a.click(); URL.revokeObjectURL(url);
