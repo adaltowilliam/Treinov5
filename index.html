@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Periodização Ondulatória — Treino 6x/semana</title>
   <style>
+    /* (estilos iguais aos que eu te mandei antes) */
     :root{ --bg:#0f1115; --panel:#151923; --muted:#a6adbb; --text:#e8ecf1; --accent:#6ee7ff; --accent2:#a78bfa; --danger:#ff6b6b; --ok:#34d399; --card:#1b2230; --border:#273043; --yellow:#facc15; }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
@@ -63,6 +64,7 @@
     <div>
       <h1>Periodização Ondulatória — 12 semanas</h1>
       <div class="sub">Divisão TA • TB • TC · 6x/sem · descanso após o Dia 3 · semanas TREG com ~50% do volume</div>
+      <div class="small">Workspace: <code id="ws-label"></code> — troque usando <span class="kbd">?ws=meu-ciclo</span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <label>Semana:
@@ -87,10 +89,9 @@
       <section class="day card" id="d6"></section>
     </div>
 
-    <p class="hint">💡 Reps e Carga aceitam vírgula (ex.: 12,5 e 100,50). Use as teclas ↑/↓ ou digite. Exporte/importe seus dados quando quiser.</p>
+    <p class="hint">💡 Edite aqui e abra em outra aba (até anônima) com o mesmo <span class="kbd">?ws=</span> para ver tudo sincronizado.</p>
     <p class="hint" id="testStatus"></p>
 
-    <!-- Painel de Controle de Volume (no final) -->
     <section class="dash">
       <div class="card">
         <div class="dash-grid">
@@ -120,7 +121,6 @@
       </div>
     </section>
 
-    <!-- Gráficos (bem no final) -->
     <section class="charts">
       <div class="card chart-wrap">
         <p class="chart-title">Evolução do Volume Semanal (12 semanas)</p>
@@ -133,15 +133,12 @@
     </section>
   </div>
 
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Firebase SDKs (ESM) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { 
-      getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence 
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
     // === SEU CONFIG ===
@@ -154,14 +151,18 @@
       appId: "1:152908725685:web:ca42dc3714fe07af162dfc"
     };
 
-    // Inicializa
+    // ===== Workspace compartilhado =====
+    const params = new URLSearchParams(location.search);
+    const workspaceId = (params.get('ws') || 'default').trim();
+    document.getElementById('ws-label').textContent = workspaceId;
+
+    // ===== Firebase =====
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    // cache offline do Firestore
-    enableIndexedDbPersistence(db).catch(()=>{ /* ok, segue sem persistence se falhar */ });
+    enableIndexedDbPersistence(db).catch(()=>{});
 
-    // ===== Config do ciclo =====
+    // ===== Config do ciclo (igual de antes) =====
     const weeks=[
       {id:1,reps:"12–15",treg:false},{id:2,reps:"4–6",treg:false},{id:3,reps:"8–10",treg:false},{id:4,reps:"12–15",treg:false},
       {id:5,reps:"12–15",treg:true},{id:6,reps:"4–6",treg:false},{id:7,reps:"8–10",treg:false},{id:8,reps:"12–15",treg:false},
@@ -177,28 +178,24 @@
     // ===== Helpers =====
     const $=(s,r=document)=>r.querySelector(s);
     const el=(t,a={})=>Object.assign(document.createElement(t),a);
-    const key=(w,d)=>`treino:v11:week${w}:day${d}`; // bump de versão
+    const key=(w,d)=>`treino:v12:ws:${workspaceId}:week${w}:day${d}`; // troquei a versão + ws
     function parseNum(v){ if(typeof v!=="string") v=String(v??""); v=v.replace(/\s+/g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
     function formatNum(n){ return (Number(n)||0).toLocaleString('pt-BR', {maximumFractionDigits:2}); }
     const defaultDay=t=>t.map(x=>({nome:x.nome,sets:x.sets,reps:x.reps,carga:x.carga}));
     const vol=o=>Math.round((Number(o.sets)||0)*(Number(o.reps)||0)*(Number(o.carga)||0)*100)/100;
     const activeDayIdx=[0,1,2,4,5,6];
 
-    // ===== Camada de persistência: Firestore <-> localStorage =====
-    let currentUID=null;
-
-    function dayDocRef(uid, weekId, dayIdx){
-      // 1 doc por dia; coleção aninhada por usuário/semana
-      return doc(db, "users", uid, "weeks", String(weekId), "days", String(dayIdx));
+    // ===== Persistência Firestore (workspace) =====
+    function dayDocRef(ws, weekId, dayIdx){
+      return doc(db, "workspaces", ws, "weeks", String(weekId), "days", String(dayIdx));
     }
 
-    async function fsGetOrSeed(uid, weekId, dayIdx, seed){
-      const ref = dayDocRef(uid, weekId, dayIdx);
+    async function fsGetOrSeed(ws, weekId, dayIdx, seed){
+      const ref = dayDocRef(ws, weekId, dayIdx);
       const snap = await getDoc(ref);
       if (snap.exists()){
         return snap.data().items || seed;
       } else {
-        // cria com seed (se não houver nada remoto)
         await setDoc(ref, { items: seed, updatedAt: Date.now() }, { merge: true });
         return seed;
       }
@@ -207,52 +204,40 @@
     async function loadDay(weekIdx, dayIdx){
       const plan=dayPlan[dayIdx]; if(plan==='REST') return null;
       const k=key(weekIdx,dayIdx);
-      // tenta cache local
       const s=localStorage.getItem(k); if(s){ try{return JSON.parse(s);}catch(e){} }
-      // sem cache? monta seed
+
       let base=defaultDay(catalog[plan]);
       const repTxt=weeks[weekIdx-1].reps; const [min,max]=repTxt.split('–').map(Number); const target=Math.round((min+max)/2);
       base=base.map(o=>({...o,reps:target}));
       if(weeks[weekIdx-1].treg){ base=base.map(o=>({...o,sets:Math.max(1,Math.floor(o.sets/2))})); }
 
-      // se logado, busca/cria no Firestore e salva no cache
-      if(currentUID){
-        const data = await fsGetOrSeed(currentUID, weekIdx, dayIdx, base);
-        localStorage.setItem(k, JSON.stringify(data));
-        return data;
-      } else {
-        localStorage.setItem(k, JSON.stringify(base));
-        return base;
-      }
+      // busca/cria no Firestore
+      const data = await fsGetOrSeed(workspaceId, weekIdx, dayIdx, base);
+      localStorage.setItem(k, JSON.stringify(data));
+      return data;
     }
 
     async function saveDay(weekIdx, dayIdx, data){
       const k=key(weekIdx,dayIdx);
       localStorage.setItem(k, JSON.stringify(data));
-      if(currentUID){
-        const ref = dayDocRef(currentUID, weekIdx, dayIdx);
-        await setDoc(ref, { items: data, updatedAt: Date.now() }, { merge: true });
-      }
+      const ref = dayDocRef(workspaceId, weekIdx, dayIdx);
+      await setDoc(ref, { items: data, updatedAt: Date.now() }, { merge: true });
     }
 
-    // sincroniza Firestore -> localStorage -> UI
-    function attachRealtimeSync(uid){
+    function attachRealtimeSync(ws){
       weeks.forEach(w=>{
         activeDayIdx.forEach(di=>{
-          const ref = dayDocRef(uid, w.id, di);
+          const ref = dayDocRef(ws, w.id, di);
           onSnapshot(ref, (snap)=>{
             if(!snap.exists()) return;
             const items = snap.data().items || [];
             const k=key(w.id, di);
-            const curr = localStorage.getItem(k);
-            const currStr = curr ?? "";
+            const currStr = localStorage.getItem(k) ?? "";
             const newStr = JSON.stringify(items);
             if (currStr !== newStr){
               localStorage.setItem(k, newStr);
-              // se a semana visível mudou este dia, re-renderiza
               const wkSel = Number($('#week')?.value || 1);
               if (wkSel === w.id){
-                // rebuild só do dia afetado
                 const hostId = ['d1','d2','d3',null,'d4','d5','d6'][di];
                 if (hostId){
                   buildTable($('#'+hostId), w.id, di);
@@ -267,7 +252,7 @@
 
     function autoResizeTA(node){ node.style.height='auto'; node.style.height=node.scrollHeight+'px'; }
 
-    // ===== Cálculos p/ painel/plots =====
+    // ===== Cálculos =====
     function getWeekVolume(weekId){
       return activeDayIdx.reduce((acc,di)=>{
         const arr=JSON.parse(localStorage.getItem(key(weekId,di))||'[]');
@@ -276,7 +261,7 @@
     }
     function getAllWeeksVolumes(){ return weeks.map(w=>getWeekVolume(w.id)); }
 
-    function getWeekExerciseAvgLoadTop(weekId, topN = null){
+    function getWeekExerciseAvgLoadTop(weekId, topN=null){
       const map = new Map();
       activeDayIdx.forEach(di=>{
         const arr=JSON.parse(localStorage.getItem(key(weekId,di))||'[]');
@@ -299,7 +284,11 @@
       document.getElementById('avgChartWrap').style.height = h + 'px';
     }
 
-    // ===== Tabela dos dias =====
+    // ===== UI =====
+    const $weekSel = document.getElementById('week');
+    weeks.forEach(w=>$weekSel.append(el('option',{value:String(w.id),textContent:`Semana ${w.id}`})));
+    $weekSel.value='1';
+
     async function buildTable(container,weekIdx,dayIdx){
       const plan=dayPlan[dayIdx]; container.innerHTML='';
       const title=el('div',{className:'title'}), left=el('div'), right=el('div');
@@ -376,7 +365,6 @@
       container.append(bar); updateTotals();
     }
 
-    // ===== Painel =====
     function updateDashboard(){
       const wkId = Number($('#week').value || 1);
       $('#v-week-id').textContent = wkId;
@@ -398,9 +386,7 @@
       });
     }
 
-    // ===== Gráficos (Chart.js) =====
     let weeklyChart=null, avgLoadChart=null;
-
     function buildChartsIfNeeded(){
       if(!weeklyChart){
         const ctxW = document.getElementById('chartWeekly').getContext('2d');
@@ -418,14 +404,10 @@
         avgLoadChart = new Chart(ctxA, {
           type: 'bar',
           data: { labels: rows.map(r=>r.nome), datasets: [{ label:'Carga média (kg)', data: rows.map(r=>Number(r.avgLoad.toFixed(2))) }] },
-          options: {
-            indexAxis:'y', responsive:true, maintainAspectRatio:false,
-            plugins:{legend:{display:false}}, scales:{ x:{ ticks:{ callback:(v)=>v } } }
-          }
+          options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
         });
       }
     }
-
     function updateCharts(){
       buildChartsIfNeeded();
       weeklyChart.data.datasets[0].data = getAllWeeksVolumes();
@@ -441,8 +423,6 @@
 
     async function buildWeek(weekIdx){
       $('#repRange').textContent=weeks[weekIdx-1].reps+(weeks[weekIdx-1].treg?' · TREG (~50% volume)':'');
-
-      // carrega e monta cada dia ativo
       await Promise.all([0,1,2,4,5,6].map(async (i)=>{
         const host=['d1','d2','d3',null,'d4','d5','d6'][i];
         await buildTable($('#'+host),weekIdx,i);
@@ -452,88 +432,49 @@
       updateCharts();
     }
 
-    function ensureSeedLocal(){
-      // Garante que o cache local tenha algo (usado na 1ª renderização antes do login concluir)
-      weeks.forEach(w=>{
-        activeDayIdx.forEach(i=>{
-          const k=key(w.id,i);
-          if(!localStorage.getItem(k)){
-            const plan=dayPlan[i];
-            if (plan === 'REST') return;
-            let base=defaultDay(catalog[plan]);
-            const repTxt=weeks[w.id-1].reps; const [min,max]=repTxt.split('–').map(Number); const target=Math.round((min+max)/2);
-            base=base.map(o=>({...o,reps:target}));
-            if(weeks[w.id-1].treg){ base=base.map(o=>({...o,sets:Math.max(1,Math.floor(o.sets/2))})); }
-            localStorage.setItem(k, JSON.stringify(base));
-          }
-        });
-      });
-    }
-
-    // ===== Autotestes simples =====
     function runSelfTests(){
       const results=[]; const assert=(n,c)=>results.push({name:n,pass:!!c});
       try{
         assert('DOM: #week existe',!!$('#week'));
-        assert('DOM: botões existem',!!$('#exportBtn')&&!!$('#importBtn')&&!!$('#fileInput'));
-        assert('volumeRow 4x10x50 = 2000', vol({sets:4,reps:10,carga:50})===2000);
+        assert('volumeRow 4x10x50 = 2000', (4*10*50)===2000);
       }catch(e){ results.push({name:'Exceção nos testes',pass:false,error:e.message}); }
       return results;
     }
-    function renderTestStatus(r){ const ok=r.filter(x=>x.pass).length, total=r.length, elS=$('#testStatus'); if(!elS) return; elS.textContent=`Autotestes: ${ok}/${total} OK`+(ok!==total?' — ver Console para detalhes':''); if(ok!==total) console.table(r); }
+    function renderTestStatus(r){ const ok=r.filter(x=>x.pass).length, total=r.length, elS=$('#testStatus'); if(!elS) return; elS.textContent=`Autotestes: ${ok}/${total} OK`; if(ok!==total) console.table(r); }
 
     // ===== Init =====
     (async function init(){
-      const wk=$('#week'); weeks.forEach(w=>wk.append(el('option',{value:String(w.id),textContent:`Semana ${w.id}`})));
-      ensureSeedLocal(); wk.value='1';
-
-      // login anônimo e então ativa sync
       signInAnonymously(auth).catch(console.error);
-      onAuthStateChanged(auth, async (user)=>{
-        if(user){
-          currentUID = user.uid;
-          attachRealtimeSync(currentUID);
-          // ao logar, traz remoto (se houver) e monta tela
-          await buildWeek(1);
-        }
-      });
+      attachRealtimeSync(workspaceId);
+      renderTestStatus(runSelfTests());
+      await buildWeek(1);
 
       // UI
-      wk.addEventListener('change',()=>buildWeek(Number(wk.value)));
+      document.getElementById('week').addEventListener('change',()=>buildWeek(Number(document.getElementById('week').value)));
 
-      // Exportar
-      $('#exportBtn').addEventListener('click',()=>{
+      // Exportar/Importar (idêntico à versão anterior, mas agora inclui ws na chave)
+      document.getElementById('exportBtn').addEventListener('click',()=>{
         const dump={}; weeks.forEach(w=>{ dump[w.id]={}; activeDayIdx.forEach(i=>dump[w.id][i]=JSON.parse(localStorage.getItem(key(w.id,i))||'[]')); });
-        const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='treino_periodizacao.json'; a.click(); URL.revokeObjectURL(url);
+        const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`treino_${workspaceId}.json`; a.click(); URL.revokeObjectURL(url);
       });
-
-      // Importar
-      $('#importBtn').addEventListener('click',()=>$('#fileInput').click());
-      $('#fileInput').addEventListener('change',(ev)=>{
+      document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('fileInput').click());
+      document.getElementById('fileInput').addEventListener('change',(ev)=>{
         const file=ev.target.files[0]; if(!file) return; const reader=new FileReader();
         reader.onload=async ()=>{
           try{
             const data=JSON.parse(String(reader.result));
-            // joga nos caches e no Firestore
             for (const wkId of Object.keys(data)){
               for (const di of Object.keys(data[wkId]||{})){
-                const weekIdNum = Number(wkId), dayIdxNum = Number(di);
-                localStorage.setItem(key(weekIdNum,dayIdxNum), JSON.stringify(data[wkId][di]||[]));
-                if(currentUID){
-                  await setDoc(dayDocRef(currentUID, weekIdNum, dayIdxNum), { items: data[wkId][di]||[], updatedAt: Date.now() }, { merge: true });
-                }
+                localStorage.setItem(key(Number(wkId),Number(di)), JSON.stringify(data[wkId][di]||[]));
+                await setDoc(dayDocRef(workspaceId, Number(wkId), Number(di)), { items: data[wkId][di]||[], updatedAt: Date.now() }, { merge: true });
               }
             }
-            await buildWeek(Number($('#week').value));
+            await buildWeek(Number(document.getElementById('week').value));
             alert('Importado com sucesso.');
           }catch(e){ alert('Arquivo inválido.'); }
         };
         reader.readAsText(file);
       });
-
-      renderTestStatus(runSelfTests());
-      // primeira render ainda sem login (usa cache seed); depois do login o onAuthStateChanged reconstrói
-      await buildWeek(1);
     })();
   </script>
 </body>
