@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Periodização Ondulatória — Treino 6x/semana</title>
+  <style>
+    :root{ --bg:#0f1115; --panel:#151923; --muted:#a6adbb; --text:#e8ecf1; --accent:#6ee7ff; --accent2:#a78bfa; --danger:#ff6b6b; --ok:#34d399; --card:#1b2230; --border:#273043; --yellow:#facc15; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:5}
+    h1{font-size:18px;margin:0}
+    .sub{font-size:12px;color:var(--muted)}
+    .wrap{max-width:1200px;margin:0 auto;padding:18px}
+    .row{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;overflow:hidden}
+    .day{grid-column:span 4;display:flex;flex-direction:column;min-width:300px}
+    .rest{border:1px dashed var(--border);background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;min-height:160px}
+    .title{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .pill{font-size:11px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+    .pill.accent{border-color:var(--accent);color:var(--accent)}
+    .pill.treg{border-color:var(--yellow);color:var(--yellow)}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th,td{border-bottom:1px solid var(--border);padding:6px 4px;text-align:left;vertical-align:top}
+    th{font-size:12px;color:var(--muted);font-weight:600}
+    input, textarea{font:15px/1.3 system-ui,Segoe UI,Roboto,Helvetica,Arial; font-variant-numeric: tabular-nums;}
+    td input, td textarea{width:100%;background:#0d1117;border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px}
+    td:nth-child(2) input, td:nth-child(3) input, td:nth-child(4) input { font-size:16px; font-weight:700; text-align:center; }
+    td textarea.namefield{min-height:48px;line-height:1.25;resize:vertical;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+    input[type=number]{padding-right:6px;appearance:textfield}
+    input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
+    input[type=number]{ -moz-appearance:textfield; }
+    tfoot td{font-weight:700}
+    .totals{display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:8px}
+    .btn{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer}
+    .btn.primary{border-color:var(--accent);} .btn.warn{border-color:var(--danger);}
+    .hint{color:var(--muted);font-size:12px;margin-top:6px}
+    .bar{height:8px;background:#0d1117;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+    .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0}
+    .rowlabel{grid-column:1/-1;color:var(--muted);font-size:12px;margin:6px 2px}
+    .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#0d1117;border:1px solid var(--border);padding:2px 6px;border-radius:6px;color:var(--muted)}
+    .small{font-size:11px;color:var(--muted)}
+    .dash{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-top:14px}
+    .dash .card{grid-column:span 12}
+    .dash-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
+    .metric{background:#0d1117;border:1px solid var(--border);border-radius:12px;padding:12px}
+    .metric h4{margin:0 0 6px 0;font-size:12px;color:var(--muted)}
+    .metric strong{font-size:18px}
+    .table-slim{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:10px}
+    .table-slim th,.table-slim td{border-bottom:1px solid var(--border);padding:6px 4px;text-align:left}
+    .table-slim th{color:var(--muted);font-size:12px}
+    .charts{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-top:14px}
+    .charts .card{grid-column:span 12}
+    .chart-wrap{padding:10px; height:420px}
+    .chart-title{font-size:13px;color:var(--muted);margin:0 0 8px}
+    @media (max-width:980px){
+      .day{grid-column:span 12;min-width:auto}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Periodização Ondulatória — 12 semanas</h1>
+      <div class="sub">Divisão TA • TB • TC · 6x/sem · descanso após o Dia 3 · semanas TREG com ~50% do volume</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label>Semana:
+        <select id="week" class="btn"></select>
+      </label>
+      <button id="exportBtn" class="btn">Exportar JSON</button>
+      <button id="importBtn" class="btn">Importar JSON</button>
+      <input type="file" id="fileInput" accept="application/json" style="display:none"/>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="rowlabel">Faixa alvo de repetições da semana: <b id="repRange">—</b> · <span class="small">dica: ajuste a carga para atingir a faixa com RIR adequado</span></div>
+
+    <div class="row">
+      <section class="day card" id="d1"></section>
+      <section class="day card" id="d2"></section>
+      <section class="day card" id="d3"></section>
+      <section class="day card rest" id="dR">DESCANSO</section>
+      <section class="day card" id="d4"></section>
+      <section class="day card" id="d5"></section>
+      <section class="day card" id="d6"></section>
+    </div>
+
+    <p class="hint">💡 Reps e Carga aceitam vírgula (ex.: 12,5 e 100,50). Use as teclas ↑/↓ ou digite. Exporte/importe seus dados quando quiser.</p>
+    <p class="hint" id="testStatus"></p>
+
+    <!-- Painel de Controle de Volume (no final) -->
+    <section class="dash">
+      <div class="card">
+        <div class="dash-grid">
+          <div class="metric" style="grid-column:span 4">
+            <h4>Volume do microciclo (Semana <span id="v-week-id">—</span>)</h4>
+            <strong id="v-micro">0</strong>
+            <div class="small">Soma dos 6 treinos ativos da semana</div>
+          </div>
+          <div class="metric" style="grid-column:span 4">
+            <h4>Acumulado do mesociclo (até a semana selecionada)</h4>
+            <strong id="v-meso">0</strong>
+            <div class="small">Soma das semanas 1 → atual</div>
+          </div>
+          <div class="metric" style="grid-column:span 4">
+            <h4>Volume total da periodização (12 semanas)</h4>
+            <strong id="v-total">0</strong>
+            <div class="small">Considera todas as semanas (inclui TREG)</div>
+          </div>
+        </div>
+
+        <table class="table-slim" id="v-table">
+          <thead>
+            <tr><th style="width:20%">Semana</th><th>Volume total do microciclo</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Gráficos (bem no final) -->
+    <section class="charts">
+      <div class="card chart-wrap">
+        <p class="chart-title">Evolução do Volume Semanal (12 semanas)</p>
+        <canvas id="chartWeekly"></canvas>
+      </div>
+      <div class="card chart-wrap" id="avgChartWrap">
+        <p class="chart-title">Carga Média por Exercício — Semana Atual (Todos)</p>
+        <canvas id="chartAvgLoad"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Firebase SDKs (ESM) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import { 
+      getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence 
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+    // === SEU CONFIG ===
+    const firebaseConfig = {
+      apiKey: "AIzaSyAN9B0dCAIfVPmGZ6qUUfC8k9KnrUT5ymI",
+      authDomain: "treino-ondulatoriov5.firebaseapp.com",
+      projectId: "treino-ondulatoriov5",
+      storageBucket: "treino-ondulatoriov5.firebasestorage.app",
+      messagingSenderId: "152908725685",
+      appId: "1:152908725685:web:ca42dc3714fe07af162dfc"
+    };
+
+    // Inicializa
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    // cache offline do Firestore
+    enableIndexedDbPersistence(db).catch(()=>{ /* ok, segue sem persistence se falhar */ });
+
+    // ===== Config do ciclo =====
+    const weeks=[
+      {id:1,reps:"12–15",treg:false},{id:2,reps:"4–6",treg:false},{id:3,reps:"8–10",treg:false},{id:4,reps:"12–15",treg:false},
+      {id:5,reps:"12–15",treg:true},{id:6,reps:"4–6",treg:false},{id:7,reps:"8–10",treg:false},{id:8,reps:"12–15",treg:false},
+      {id:9,reps:"12–15",treg:true},{id:10,reps:"4–6",treg:false},{id:11,reps:"8–10",treg:false},{id:12,reps:"12–15",treg:false}
+    ];
+    const dayPlan=["TA","TB","TC","REST","TA","TB","TC"];
+    const catalog={
+      TA:[{nome:"Puxada aberta",sets:4,reps:12,carga:50},{nome:"Remada curvada",sets:3,reps:10,carga:47},{nome:"Remada articulada",sets:3,reps:10,carga:50},{nome:"Face Pull",sets:3,reps:15,carga:35},{nome:"Rosca Direta",sets:3,reps:12,carga:23},{nome:"Rosca Scott",sets:3,reps:10,carga:20}],
+      TB:[{nome:"Supino",sets:4,reps:12,carga:47.5},{nome:"Supino Inclinado (halteres)",sets:3,reps:12,carga:42.66},{nome:"Crossover",sets:3,reps:12,carga:30},{nome:"Elevação na polia",sets:3,reps:14,carga:6.66},{nome:"Tríceps corda",sets:3,reps:15,carga:35},{nome:"Tríceps francês (corda)",sets:2,reps:15,carga:30}],
+      TC:[{nome:"Agachamento livre",sets:4,reps:15,carga:59},{nome:"Leg Press",sets:3,reps:13,carga:160},{nome:"Cadeira extensora",sets:3,reps:12,carga:100},{nome:"Mesa flexora",sets:3,reps:15,carga:30},{nome:"Panturrilha",sets:3,reps:12,carga:40}]
+    };
+
+    // ===== Helpers =====
+    const $=(s,r=document)=>r.querySelector(s);
+    const el=(t,a={})=>Object.assign(document.createElement(t),a);
+    const key=(w,d)=>`treino:v11:week${w}:day${d}`; // bump de versão
+    function parseNum(v){ if(typeof v!=="string") v=String(v??""); v=v.replace(/\s+/g,'').replace(',', '.'); const n=parseFloat(v); return isNaN(n)?0:n; }
+    function formatNum(n){ return (Number(n)||0).toLocaleString('pt-BR', {maximumFractionDigits:2}); }
+    const defaultDay=t=>t.map(x=>({nome:x.nome,sets:x.sets,reps:x.reps,carga:x.carga}));
+    const vol=o=>Math.round((Number(o.sets)||0)*(Number(o.reps)||0)*(Number(o.carga)||0)*100)/100;
+    const activeDayIdx=[0,1,2,4,5,6];
+
+    // ===== Camada de persistência: Firestore <-> localStorage =====
+    let currentUID=null;
+
+    function dayDocRef(uid, weekId, dayIdx){
+      // 1 doc por dia; coleção aninhada por usuário/semana
+      return doc(db, "users", uid, "weeks", String(weekId), "days", String(dayIdx));
+    }
+
+    async function fsGetOrSeed(uid, weekId, dayIdx, seed){
+      const ref = dayDocRef(uid, weekId, dayIdx);
+      const snap = await getDoc(ref);
+      if (snap.exists()){
+        return snap.data().items || seed;
+      } else {
+        // cria com seed (se não houver nada remoto)
+        await setDoc(ref, { items: seed, updatedAt: Date.now() }, { merge: true });
+        return seed;
+      }
+    }
+
+    async function loadDay(weekIdx, dayIdx){
+      const plan=dayPlan[dayIdx]; if(plan==='REST') return null;
+      const k=key(weekIdx,dayIdx);
+      // tenta cache local
+      const s=localStorage.getItem(k); if(s){ try{return JSON.parse(s);}catch(e){} }
+      // sem cache? monta seed
+      let base=defaultDay(catalog[plan]);
+      const repTxt=weeks[weekIdx-1].reps; const [min,max]=repTxt.split('–').map(Number); const target=Math.round((min+max)/2);
+      base=base.map(o=>({...o,reps:target}));
+      if(weeks[weekIdx-1].treg){ base=base.map(o=>({...o,sets:Math.max(1,Math.floor(o.sets/2))})); }
+
+      // se logado, busca/cria no Firestore e salva no cache
+      if(currentUID){
+        const data = await fsGetOrSeed(currentUID, weekIdx, dayIdx, base);
+        localStorage.setItem(k, JSON.stringify(data));
+        return data;
+      } else {
+        localStorage.setItem(k, JSON.stringify(base));
+        return base;
+      }
+    }
+
+    async function saveDay(weekIdx, dayIdx, data){
+      const k=key(weekIdx,dayIdx);
+      localStorage.setItem(k, JSON.stringify(data));
+      if(currentUID){
+        const ref = dayDocRef(currentUID, weekIdx, dayIdx);
+        await setDoc(ref, { items: data, updatedAt: Date.now() }, { merge: true });
+      }
+    }
+
+    // sincroniza Firestore -> localStorage -> UI
+    function attachRealtimeSync(uid){
+      weeks.forEach(w=>{
+        activeDayIdx.forEach(di=>{
+          const ref = dayDocRef(uid, w.id, di);
+          onSnapshot(ref, (snap)=>{
+            if(!snap.exists()) return;
+            const items = snap.data().items || [];
+            const k=key(w.id, di);
+            const curr = localStorage.getItem(k);
+            const currStr = curr ?? "";
+            const newStr = JSON.stringify(items);
+            if (currStr !== newStr){
+              localStorage.setItem(k, newStr);
+              // se a semana visível mudou este dia, re-renderiza
+              const wkSel = Number($('#week')?.value || 1);
+              if (wkSel === w.id){
+                // rebuild só do dia afetado
+                const hostId = ['d1','d2','d3',null,'d4','d5','d6'][di];
+                if (hostId){
+                  buildTable($('#'+hostId), w.id, di);
+                  updateDashboard(); updateCharts();
+                }
+              }
+            }
+          });
+        });
+      });
+    }
+
+    function autoResizeTA(node){ node.style.height='auto'; node.style.height=node.scrollHeight+'px'; }
+
+    // ===== Cálculos p/ painel/plots =====
+    function getWeekVolume(weekId){
+      return activeDayIdx.reduce((acc,di)=>{
+        const arr=JSON.parse(localStorage.getItem(key(weekId,di))||'[]');
+        return acc + arr.reduce((a,o)=>a+vol(o),0);
+      },0);
+    }
+    function getAllWeeksVolumes(){ return weeks.map(w=>getWeekVolume(w.id)); }
+
+    function getWeekExerciseAvgLoadTop(weekId, topN = null){
+      const map = new Map();
+      activeDayIdx.forEach(di=>{
+        const arr=JSON.parse(localStorage.getItem(key(weekId,di))||'[]');
+        arr.forEach(o=>{
+          const name=o.nome || '—';
+          const entry=map.get(name)||{sumLoad:0,count:0,sumVol:0};
+          entry.sumLoad += Number(o.carga)||0;
+          entry.count   += 1;
+          entry.sumVol  += vol(o);
+          map.set(name,entry);
+        });
+      });
+      const rows=[...map.entries()].map(([nome,{sumLoad,count,sumVol}])=>({ nome, avgLoad: count? (sumLoad/count):0, sumVol }));
+      rows.sort((a,b)=>b.sumVol-a.sumVol);
+      return topN ? rows.slice(0, topN) : rows;
+    }
+
+    function setAvgChartHeightByRows(count){
+      const h = Math.min(1600, Math.max(300, 28*count + 80));
+      document.getElementById('avgChartWrap').style.height = h + 'px';
+    }
+
+    // ===== Tabela dos dias =====
+    async function buildTable(container,weekIdx,dayIdx){
+      const plan=dayPlan[dayIdx]; container.innerHTML='';
+      const title=el('div',{className:'title'}), left=el('div'), right=el('div');
+      const h=el('h3'); h.style.margin='0'; h.textContent=`Dia ${dayIdx<3?dayIdx+1:dayIdx} · ${plan}`;
+      left.append(h, el('div',{className:'sub',textContent:'Ajuste carga para bater a faixa de reps'}));
+      const pill=el('span',{className:'pill accent',textContent:plan}); right.append(pill);
+      if(weeks[weekIdx-1].treg) right.append(' ', el('span',{className:'pill treg',textContent:'TREG (~50% volume)'}));
+      title.append(left,right);
+
+      const tbl=el('table');
+      const colgroup=el('colgroup');
+      colgroup.innerHTML=`<col style="width:36%"><col style="width:10%"><col style="width:20%"><col style="width:22%"><col style="width:12%">`;
+      const thead=el('thead'); thead.innerHTML=`<tr><th>Exercício</th><th>Séries</th><th>Reps</th><th>Carga (kg)</th><th>Volume</th></tr>`;
+      const tbody=el('tbody');
+
+      let data=await loadDay(weekIdx,dayIdx);
+      data.forEach((o)=>{
+        const tr=el('tr');
+
+        const td0=el('td');
+        const name=el('textarea',{className:'namefield',rows:2});
+        name.value=o.nome; autoResizeTA(name);
+        name.addEventListener('input',()=>{o.nome=name.value; autoResizeTA(name); persist(); updateDashboard(); updateCharts();});
+        td0.append(name);
+
+        const td1=el('td');
+        const sets=el('input',{type:'number',step:'1',min:'1',value:o.sets});
+        sets.addEventListener('input',()=>{o.sets=+sets.value; recalc();});
+        td1.append(sets);
+
+        const td2=el('td');
+        const reps=el('input',{type:'text',inputMode:'decimal',placeholder:'0',value:formatNum(o.reps)});
+        reps.addEventListener('input',()=>{ o.reps=parseNum(reps.value); recalc(true); });
+        reps.addEventListener('blur', ()=>{ reps.value = formatNum(o.reps); });
+        td2.append(reps);
+
+        const td3=el('td');
+        const load=el('input',{type:'text',inputMode:'decimal',placeholder:'0',value:formatNum(o.carga)});
+        load.addEventListener('input',()=>{ o.carga=parseNum(load.value); recalc(true); });
+        load.addEventListener('blur', ()=>{ load.value = formatNum(o.carga); });
+        td3.append(load);
+
+        const td4=el('td');
+        const v=el('span',{textContent: formatNum(vol(o))});
+        td4.append(v);
+
+        tr.append(td0,td1,td2,td3,td4);
+        tbody.append(tr);
+
+        function persist(){ saveDay(weekIdx,dayIdx,data); }
+        function recalc(persistNow=true){ v.textContent=formatNum(vol(o)); if(persistNow) persist(); updateTotals(); updateDashboard(); updateCharts(); }
+      });
+
+      const tfoot=el('tfoot'); const trf=el('tr');
+      const tdf=el('td'); tdf.colSpan=5; tdf.style.textAlign='right';
+      const totals=el('div',{className:'totals'});
+      const bar=el('div',{className:'bar'}); const barIn=el('i'); bar.append(barIn);
+      const totalLbl=el('div',{id:`total-${dayIdx}`,textContent:'Total da sessão: 0'});
+      totals.append(totalLbl); tdf.append(totals); trf.append(tdf); tfoot.append(trf);
+
+      container.append(title,tbl);
+      tbl.append(colgroup,thead,tbody,tfoot);
+
+      function updateTotals(){
+        const sum=data.reduce((acc,o)=>acc+vol(o),0);
+        $('#total-'+dayIdx).textContent='Total da sessão: '+formatNum(sum);
+        const actives=activeDayIdx.map(i=>{
+          const d=JSON.parse(localStorage.getItem(key(weekIdx,i))||'[]');
+          return d.reduce((a,o)=>a+vol(o),0);
+        });
+        const max=Math.max(1,...actives);
+        barIn.style.width=Math.min(100,(sum/max)*100)+'%';
+      }
+      container.append(bar); updateTotals();
+    }
+
+    // ===== Painel =====
+    function updateDashboard(){
+      const wkId = Number($('#week').value || 1);
+      $('#v-week-id').textContent = wkId;
+
+      const arr = getAllWeeksVolumes();
+      const micro = arr[wkId-1] || 0;
+      const meso = arr.slice(0, wkId).reduce((a,b)=>a+b,0);
+      const total = arr.reduce((a,b)=>a+b,0);
+
+      $('#v-micro').textContent = formatNum(micro);
+      $('#v-meso').textContent = formatNum(meso);
+      $('#v-total').textContent = formatNum(total);
+
+      const tb = $('#v-table tbody'); tb.innerHTML='';
+      arr.forEach((v,i)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = `<td>Semana ${i+1}${weeks[i].treg?' <span class="small">(TREG)</span>':''}</td><td>${formatNum(v)}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    // ===== Gráficos (Chart.js) =====
+    let weeklyChart=null, avgLoadChart=null;
+
+    function buildChartsIfNeeded(){
+      if(!weeklyChart){
+        const ctxW = document.getElementById('chartWeekly').getContext('2d');
+        weeklyChart = new Chart(ctxW, {
+          type: 'line',
+          data: { labels: weeks.map(w=>'S'+w.id), datasets: [{ label: 'Volume semanal', data: getAllWeeksVolumes() }] },
+          options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+        });
+      }
+      if(!avgLoadChart){
+        const ctxA = document.getElementById('chartAvgLoad').getContext('2d');
+        const wkId = Number($('#week').value||1);
+        const rows = getWeekExerciseAvgLoadTop(wkId, null);
+        setAvgChartHeightByRows(rows.length);
+        avgLoadChart = new Chart(ctxA, {
+          type: 'bar',
+          data: { labels: rows.map(r=>r.nome), datasets: [{ label:'Carga média (kg)', data: rows.map(r=>Number(r.avgLoad.toFixed(2))) }] },
+          options: {
+            indexAxis:'y', responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{display:false}}, scales:{ x:{ ticks:{ callback:(v)=>v } } }
+          }
+        });
+      }
+    }
+
+    function updateCharts(){
+      buildChartsIfNeeded();
+      weeklyChart.data.datasets[0].data = getAllWeeksVolumes();
+      weeklyChart.update();
+
+      const wkId = Number($('#week').value||1);
+      const rows = getWeekExerciseAvgLoadTop(wkId, null);
+      setAvgChartHeightByRows(rows.length);
+      avgLoadChart.data.labels = rows.map(r=>r.nome);
+      avgLoadChart.data.datasets[0].data = rows.map(r=>Number(r.avgLoad.toFixed(2)));
+      avgLoadChart.update();
+    }
+
+    async function buildWeek(weekIdx){
+      $('#repRange').textContent=weeks[weekIdx-1].reps+(weeks[weekIdx-1].treg?' · TREG (~50% volume)':'');
+
+      // carrega e monta cada dia ativo
+      await Promise.all([0,1,2,4,5,6].map(async (i)=>{
+        const host=['d1','d2','d3',null,'d4','d5','d6'][i];
+        await buildTable($('#'+host),weekIdx,i);
+      }));
+      $('#dR').classList.toggle('card',true);
+      updateDashboard();
+      updateCharts();
+    }
+
+    function ensureSeedLocal(){
+      // Garante que o cache local tenha algo (usado na 1ª renderização antes do login concluir)
+      weeks.forEach(w=>{
+        activeDayIdx.forEach(i=>{
+          const k=key(w.id,i);
+          if(!localStorage.getItem(k)){
+            const plan=dayPlan[i];
+            if (plan === 'REST') return;
+            let base=defaultDay(catalog[plan]);
+            const repTxt=weeks[w.id-1].reps; const [min,max]=repTxt.split('–').map(Number); const target=Math.round((min+max)/2);
+            base=base.map(o=>({...o,reps:target}));
+            if(weeks[w.id-1].treg){ base=base.map(o=>({...o,sets:Math.max(1,Math.floor(o.sets/2))})); }
+            localStorage.setItem(k, JSON.stringify(base));
+          }
+        });
+      });
+    }
+
+    // ===== Autotestes simples =====
+    function runSelfTests(){
+      const results=[]; const assert=(n,c)=>results.push({name:n,pass:!!c});
+      try{
+        assert('DOM: #week existe',!!$('#week'));
+        assert('DOM: botões existem',!!$('#exportBtn')&&!!$('#importBtn')&&!!$('#fileInput'));
+        assert('volumeRow 4x10x50 = 2000', vol({sets:4,reps:10,carga:50})===2000);
+      }catch(e){ results.push({name:'Exceção nos testes',pass:false,error:e.message}); }
+      return results;
+    }
+    function renderTestStatus(r){ const ok=r.filter(x=>x.pass).length, total=r.length, elS=$('#testStatus'); if(!elS) return; elS.textContent=`Autotestes: ${ok}/${total} OK`+(ok!==total?' — ver Console para detalhes':''); if(ok!==total) console.table(r); }
+
+    // ===== Init =====
+    (async function init(){
+      const wk=$('#week'); weeks.forEach(w=>wk.append(el('option',{value:String(w.id),textContent:`Semana ${w.id}`})));
+      ensureSeedLocal(); wk.value='1';
+
+      // login anônimo e então ativa sync
+      signInAnonymously(auth).catch(console.error);
+      onAuthStateChanged(auth, async (user)=>{
+        if(user){
+          currentUID = user.uid;
+          attachRealtimeSync(currentUID);
+          // ao logar, traz remoto (se houver) e monta tela
+          await buildWeek(1);
+        }
+      });
+
+      // UI
+      wk.addEventListener('change',()=>buildWeek(Number(wk.value)));
+
+      // Exportar
+      $('#exportBtn').addEventListener('click',()=>{
+        const dump={}; weeks.forEach(w=>{ dump[w.id]={}; activeDayIdx.forEach(i=>dump[w.id][i]=JSON.parse(localStorage.getItem(key(w.id,i))||'[]')); });
+        const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='treino_periodizacao.json'; a.click(); URL.revokeObjectURL(url);
+      });
+
+      // Importar
+      $('#importBtn').addEventListener('click',()=>$('#fileInput').click());
+      $('#fileInput').addEventListener('change',(ev)=>{
+        const file=ev.target.files[0]; if(!file) return; const reader=new FileReader();
+        reader.onload=async ()=>{
+          try{
+            const data=JSON.parse(String(reader.result));
+            // joga nos caches e no Firestore
+            for (const wkId of Object.keys(data)){
+              for (const di of Object.keys(data[wkId]||{})){
+                const weekIdNum = Number(wkId), dayIdxNum = Number(di);
+                localStorage.setItem(key(weekIdNum,dayIdxNum), JSON.stringify(data[wkId][di]||[]));
+                if(currentUID){
+                  await setDoc(dayDocRef(currentUID, weekIdNum, dayIdxNum), { items: data[wkId][di]||[], updatedAt: Date.now() }, { merge: true });
+                }
+              }
+            }
+            await buildWeek(Number($('#week').value));
+            alert('Importado com sucesso.');
+          }catch(e){ alert('Arquivo inválido.'); }
+        };
+        reader.readAsText(file);
+      });
+
+      renderTestStatus(runSelfTests());
+      // primeira render ainda sem login (usa cache seed); depois do login o onAuthStateChanged reconstrói
+      await buildWeek(1);
+    })();
+  </script>
+</body>
+</html>
