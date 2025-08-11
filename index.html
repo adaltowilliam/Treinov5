@@ -494,5 +494,13 @@
       navigator.serviceWorker.register('/Treinov5/service-worker.js');
     }
   </script>
+  <script>
+  // Adiciona cache buster automaticamente
+  document.querySelectorAll('script[src], link[rel="stylesheet"], link[rel="manifest"]').forEach(el => {
+    const attr = el.tagName === 'SCRIPT' ? 'src' : 'href';
+    el.setAttribute(attr, el.getAttribute(attr) + '?v=' + new Date().getTime());
+  });
+</script>
 </body>
 </html>
+
